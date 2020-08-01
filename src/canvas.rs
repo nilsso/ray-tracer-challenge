@@ -81,7 +81,7 @@ impl Canvas {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Canvas, Color, BLACK, WHITE};
+    use crate::{Canvas, BLACK, WHITE};
 
     #[test]
     fn new_canvas_is_all_black() {

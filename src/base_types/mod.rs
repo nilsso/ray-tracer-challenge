@@ -40,33 +40,12 @@ macro_rules! coordinate_struct_convert {
 mod color;
 mod point;
 mod vector;
+mod tiny_matrix;
 
 pub use color::*;
 pub use point::*;
 pub use vector::*;
-
-#[macro_use]
-mod tiny_matrix;
-use std::ops::{Add, Mul};
-
-// Square matrices
-matrix!(Matrix1, 1);
-matrix!(Matrix2, 2);
-matrix!(Matrix3, 3);
-matrix!(Matrix4, 4);
-
-matrix!(Matrix1x4, 4, 1);
-matrix!(Matrix2x4, 4, 1);
-matrix!(Matrix3x4, 4, 1);
-
-matrix!(Matrix4x1, 4, 1);
-matrix!(Matrix4x2, 4, 1);
-matrix!(Matrix4x3, 4, 1);
-
-// Matrix multiplication
-//matrix_mul!((Matrix2x3, Matrix3x2, 3), (Matrix2, 2));
-//matrix_mul!((Matrix1x4, Matrix4x1, 1), (Matrix1, 1));
-//matrix_mul!((Matrix2x4, Matrix4x1, 1), (Matrix2x1, 1));
+pub use tiny_matrix::*;
 
 #[cfg(test)]
 mod tests {
@@ -228,5 +207,344 @@ mod tests {
         }
     }
 
-    mod matrix {}
+    mod matrix {
+        use crate::{Matrix1, Matrix2, Matrix3, Matrix4};
+
+        const EPSILON: f64 = 1.0e-13;
+
+        #[test]
+        fn add_and_subtract_1x1_matrices() {
+            const A: Matrix1 = Matrix1::new([[1.0]]);
+            const B: Matrix1 = Matrix1::new([[2.0]]);
+            {
+                const R: Matrix1 = Matrix1::new([[3.0]]);
+                assert_eq_commutative!(+, A, B, R);
+            }
+            {
+                const R: Matrix1 = Matrix1::new([[-1.0]]);
+                assert_eq!(A - B, R);
+                assert_eq!(B - A, -R);
+            }
+        }
+
+        #[test]
+        fn add_and_subtract_2x2_matrices() {
+            const A: Matrix2 = Matrix2::new([
+                [1.0, 2.0],
+                [3.0, 4.0]
+            ]);
+            const B: Matrix2 = Matrix2::new([
+                [5.0, 6.0],
+                [7.0, 8.0]
+            ]);
+            {
+                const R: Matrix2 = Matrix2::new([
+                    [6.0, 8.0],
+                    [10.0, 12.0]
+                ]);
+                assert_eq_commutative!(+, A, B, R);
+            }
+            {
+                const R: Matrix2 = Matrix2::new([
+                    [-4.0, -4.0],
+                    [-4.0, -4.0],
+                ]);
+                assert_eq!(A - B, R);
+                assert_eq!(B - A, -R);
+            }
+        }
+
+        #[test]
+        fn add_and_subtract_3x3_matrices() {
+            const A: Matrix3 = Matrix3::new([
+                [6.0, 9.0, 4.0],
+                [3.0, 5.0, 7.0],
+                [8.0, 1.0, 2.0],
+            ]);
+            const B: Matrix3 = Matrix3::new([
+                [4.0, 8.0, 1.0],
+                [9.0, 5.0, 6.0],
+                [3.0, 7.0, 2.0],
+            ]);
+            {
+                const R: Matrix3 = Matrix3::new([
+                    [10.0, 17.0, 5.0],
+                    [12.0, 10.0, 13.0],
+                    [11.0, 8.0, 4.0],
+                ]);
+                assert_eq_commutative!(+, A, B, R);
+            }
+            {
+                const R: Matrix3 = Matrix3::new([
+                    [2.0, 1.0, 3.0],
+                    [-6.0, 0.0, 1.0],
+                    [5.0, -6.0, 0.0],
+                ]);
+                assert_eq!(A - B, R);
+                assert_eq!(B - A, -R);
+            }
+        }
+
+        #[test]
+        fn add_and_subtract_4x4_matrices() {
+            const A: Matrix4 = Matrix4::new([
+                [2.0, 14.0, 8.0, 16.0],
+                [12.0, 7.0, 1.0, 11.0],
+                [15.0, 4.0, 3.0, 5.0],
+                [10.0, 9.0, 6.0, 13.0],
+            ]);
+            const B: Matrix4 = Matrix4::new([
+                [10.0, 13.0, 16.0, 3.0],
+                [1.0, 4.0, 5.0, 7.0],
+                [6.0, 15.0, 12.0, 8.0],
+                [11.0, 9.0, 14.0, 2.0],
+            ]);
+            {
+                const R: Matrix4 = Matrix4::new([
+                    [12.0, 27.0, 24.0, 19.0],
+                    [13.0, 11.0, 6.0, 18.0],
+                    [21.0, 19.0, 15.0, 13.0],
+                    [21.0, 18.0, 20.0, 15.0],
+                ]);
+                assert_eq_commutative!(+, A, B, R);
+            }
+            {
+                const R: Matrix4 = Matrix4::new([
+                    [-8.0, 1.0, -8.0, 13.0],
+                    [11.0, 3.0, -4.0, 4.0],
+                    [9.0, -11.0, -9.0, -3.0],
+                    [-1.0, 0.0, -8.0, 11.0],
+                ]);
+                assert_eq!(A - B, R);
+                assert_eq!(B - A, -R);
+            }
+        }
+
+        #[test]
+        fn multiply_a_1x1_matrix() {
+            const A: Matrix1 = Matrix1::new([
+                [5.0],
+            ]);
+
+            const R: Matrix1 = Matrix1::new([
+                [5.0 * 5.0]
+            ]);
+
+            assert_eq!(A * A, R);
+        }
+
+        #[test]
+        fn multiply_a_2x2_matrix() {
+            const A: Matrix2 = Matrix2::new([
+                [1.0, 2.0],
+                [3.0, 4.0],
+            ]);
+
+            const R: Matrix2 = Matrix2::new([
+                [
+                    1.0 * 1.0 + 2.0 * 3.0,
+                    1.0 * 2.0 + 2.0 * 4.0,
+                ],
+                [
+                    3.0 * 1.0 + 4.0 * 3.0,
+                    3.0 * 2.0 + 4.0 * 4.0,
+                ],
+            ]);
+
+            assert_eq!(A * A, R);
+        }
+
+        #[test]
+        fn multiply_a_3x3_matrix() {
+            const A: Matrix3 = Matrix3::new([
+                [1.0, 2.0, 3.0],
+                [3.0, 1.0, 2.0],
+                [2.0, 3.0, 1.0],
+            ]);
+
+            const R: Matrix3 = Matrix3::new([
+                [
+                    1.0 * 1.0 + 2.0 * 3.0 + 3.0 * 2.0,
+                    1.0 * 2.0 + 2.0 * 1.0 + 3.0 * 3.0,
+                    1.0 * 3.0 + 2.0 * 2.0 + 3.0 * 1.0,
+                ],
+                [
+                    3.0 * 1.0 + 1.0 * 3.0 + 2.0 * 2.0,
+                    3.0 * 2.0 + 1.0 * 1.0 + 2.0 * 3.0,
+                    3.0 * 3.0 + 1.0 * 2.0 + 2.0 * 1.0,
+                ],
+                [
+                    2.0 * 1.0 + 3.0 * 3.0 + 1.0 * 2.0,
+                    2.0 * 2.0 + 3.0 * 1.0 + 1.0 * 3.0,
+                    2.0 * 3.0 + 3.0 * 2.0 + 1.0 * 1.0,
+                ],
+            ]);
+
+            assert_eq!(A * A, R);
+        }
+
+        #[test]
+        fn multiply_a_4x4_matrix() {
+            const A: Matrix4 = Matrix4::new([
+                [1.0, 2.0, 3.0, 4.0],
+                [4.0, 1.0, 2.0, 3.0],
+                [3.0, 4.0, 1.0, 2.0],
+                [2.0, 3.0, 4.0, 1.0],
+            ]);
+
+            const R: Matrix4 = Matrix4::new([
+                [
+                    1.0 * 1.0 + 2.0 * 4.0 + 3.0 * 3.0 + 4.0 * 2.0,
+                    1.0 * 2.0 + 2.0 * 1.0 + 3.0 * 4.0 + 4.0 * 3.0,
+                    1.0 * 3.0 + 2.0 * 2.0 + 3.0 * 1.0 + 4.0 * 4.0,
+                    1.0 * 4.0 + 2.0 * 3.0 + 3.0 * 2.0 + 4.0 * 1.0,
+                ],
+                [
+                    4.0 * 1.0 + 1.0 * 4.0 + 2.0 * 3.0 + 3.0 * 2.0,
+                    4.0 * 2.0 + 1.0 * 1.0 + 2.0 * 4.0 + 3.0 * 3.0,
+                    4.0 * 3.0 + 1.0 * 2.0 + 2.0 * 1.0 + 3.0 * 4.0,
+                    4.0 * 4.0 + 1.0 * 3.0 + 2.0 * 2.0 + 3.0 * 1.0,
+                ],
+                [
+                    3.0 * 1.0 + 4.0 * 4.0 + 1.0 * 3.0 + 2.0 * 2.0,
+                    3.0 * 2.0 + 4.0 * 1.0 + 1.0 * 4.0 + 2.0 * 3.0,
+                    3.0 * 3.0 + 4.0 * 2.0 + 1.0 * 1.0 + 2.0 * 4.0,
+                    3.0 * 4.0 + 4.0 * 3.0 + 1.0 * 2.0 + 2.0 * 1.0,
+                ],
+                [
+                    2.0 * 1.0 + 3.0 * 4.0 + 4.0 * 3.0 + 1.0 * 2.0,
+                    2.0 * 2.0 + 3.0 * 1.0 + 4.0 * 4.0 + 1.0 * 3.0,
+                    2.0 * 3.0 + 3.0 * 2.0 + 4.0 * 1.0 + 1.0 * 4.0,
+                    2.0 * 4.0 + 3.0 * 3.0 + 4.0 * 2.0 + 1.0 * 1.0,
+                ],
+            ]);
+
+            assert_eq!(A * A, R);
+        }
+
+        #[test]
+        fn determinant_of_a_1x1_matrix() {
+            const A: Matrix1 = Matrix1::new([[7.0]]);
+
+            assert_eq!(A.det(), 7.0);
+        }
+
+        #[test]
+        fn determinant_of_a_2x2_matrix() {
+            const A: Matrix2 = Matrix2::new([
+                [1.0, 2.0],
+                [2.0, 1.0],
+            ]);
+
+            const R: f64 = 1.0 * 1.0 - 2.0 * 2.0;
+
+            assert_eq!(A.det(), R);
+        }
+
+        #[test]
+        fn determinant_of_a_3x3_matrix() {
+            const A: Matrix3 = Matrix3::new([
+                [1.0, 2.0, 3.0],
+                [3.0, 1.0, 2.0],
+                [2.0, 3.0, 1.0],
+            ]);
+
+            const R: f64 =
+                1.0 * (1.0 * 1.0 - 2.0 * 3.0) -
+                    2.0 * (3.0 * 1.0 - 2.0 * 2.0) +
+                    3.0 * (3.0 * 3.0 - 1.0 * 2.0);
+
+            assert_eq!(A.det(), R);
+        }
+
+        #[test]
+        fn determinant_of_a_4x4_matrix() {
+            const A: Matrix4 = Matrix4::new([
+                [1.0, 2.0, 3.0, 4.0],
+                [4.0, 1.0, 2.0, 3.0],
+                [3.0, 4.0, 1.0, 2.0],
+                [2.0, 3.0, 4.0, 1.0],
+            ]);
+
+            const R: f64 =
+                1.0 * (1.0 * (1.0 * 1.0 - 2.0 * 4.0) - 2.0 * (4.0 * 1.0 - 2.0 * 3.0) + 3.0 * (4.0 * 4.0 - 1.0 * 3.0)) -
+                    2.0 * (4.0 * (1.0 * 1.0 - 2.0 * 4.0) - 2.0 * (3.0 * 1.0 - 2.0 * 2.0) + 3.0 * (3.0 * 4.0 - 1.0 * 2.0)) +
+                    3.0 * (4.0 * (4.0 * 1.0 - 2.0 * 3.0) - 1.0 * (3.0 * 1.0 - 2.0 * 2.0) + 3.0 * (3.0 * 3.0 - 4.0 * 2.0)) -
+                    4.0 * (4.0 * (4.0 * 4.0 - 1.0 * 3.0) - 1.0 * (3.0 * 4.0 - 1.0 * 2.0) + 2.0 * (3.0 * 3.0 - 4.0 * 2.0));
+
+            assert_eq!(A.det(), R);
+        }
+
+        // #[test]
+        // fn inverse_of_1x1_matrices() {
+        //     const A: Matrix1 = Matrix1::new([
+        //         [92.0],
+        //     ]);
+        //
+        //     const B: Matrix1 = Matrix1::new([
+        //         [65.0],
+        //     ]);
+        //
+        //     let res = A - (A * B) * B.inverse().unwrap();
+        //
+        //     assert!(res.iter().all(|v| v.abs() < EPSILON));
+        // }
+
+        #[test]
+        fn inverse_of_2x2_matrices() {
+            const A: Matrix2 = Matrix2::new([
+                [4., 1.],
+                [3., 2.],
+            ]);
+
+            const B: Matrix2 = Matrix2::new([
+                [3., 2.],
+                [1., 4.],
+            ]);
+
+            let res = A - (A * B) * B.inverse().unwrap();
+
+            assert!(res.iter().all(|v| v.abs() < EPSILON));
+        }
+
+        #[test]
+        fn inverse_of_3x3_matrices() {
+            const A: Matrix3 = Matrix3::new([
+                [1.0, 5.0, 9.0],
+                [7.0, 3.0, 6.0],
+                [2.0, 4.0, 8.0],
+            ]);
+
+            const B: Matrix3 = Matrix3::new([
+                [4.0, 6.0, 2.0],
+                [5.0, 8.0, 9.0],
+                [7.0, 3.0, 1.0],
+            ]);
+
+            let res = A - (A * B) * B.inverse().unwrap();
+
+            assert!(res.iter().all(|v| v.abs() < EPSILON));
+        }
+
+        #[test]
+        fn inverses_of_4x4_matrices() {
+            const A: Matrix4 = Matrix4::new([
+                [2.0, 14.0, 8.0, 16.0],
+                [12.0, 7.0, 1.0, 11.0],
+                [15.0, 4.0, 3.0, 5.0],
+                [10.0, 9.0, 6.0, 13.0],
+            ]);
+
+            const B: Matrix4 = Matrix4::new([
+                [10.0, 13.0, 16.0, 3.0],
+                [1.0, 4.0, 5.0, 7.0],
+                [6.0, 15.0, 12.0, 8.0],
+                [11.0, 9.0, 14.0, 2.0],
+            ]);
+
+            let res = A - (A * B) * B.inverse().unwrap();
+
+            assert!(res.iter().all(|v| v.abs() < EPSILON));
+        }
+    }
 }

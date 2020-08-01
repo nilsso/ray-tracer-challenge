@@ -3,33 +3,6 @@
 use ray_tracer_challenge::*;
 
 fn main() {
-    //let a = Matrix2::new([1.0, 0.0, 0.0, 2.0]);
-    //println!("{:?}", a * a);
-
-    //let a = Matrix2x4::new([2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-    //let b = Matrix4x1::new([3.0, 0.0, 0.0, 0.0]);
-
-    //println!("{:?}", a * b);
-
-    //let i = Matrix2x3::ident();
-    //let b = Matrix3x2::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-    //println!("{:?}", i * b);
-
-    //println!("{:?}", Matrix2x3::ident());
-    //println!("{}", Matrix3::zero().len());
-    //println!("{}", Matrix3x2::zero().len());
-
-    //println!("{}", m.len());
-
-    //struct Matrix<R, C> {
-    //}
-
-    //impl<R, C> Matrix<R, C> {
-    //}
-
-    //for r in m.rows() {
-    //println!("{:?}", r);
-    //}
 
     /*
      *    let width = 256;

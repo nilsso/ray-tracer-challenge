@@ -1,115 +1,107 @@
+use std::ops::{Neg, Add, Mul, Sub, Div};
+
 macro_rules! matrix {
-    (@matrix_mn $name:tt, $R:tt, $C:tt, $N:expr) => {
+    // (Internal match) Matrix definition and implementation
+    // - `matrix`: Matrix type name
+    // - `D`: Number of rows/columns
+    (@matrix_def $matrix:tt, $D:tt) => {
         #[derive(Copy, Clone, PartialEq, Debug)]
-        pub struct $name {
-            data: [f64; $N],
+        pub struct $matrix {
+            d: usize,
+            pub data: [[f64; $D]; $D],
         }
 
-        impl $name {
-            pub const fn new(data: [f64; $N]) -> Self {
-                Self { data }
+        impl $matrix {
+            pub const fn new(data: [[f64; $D]; $D]) -> Self {
+                Self {
+                    d: $D,
+                    data
+                }
             }
 
             pub const fn zero() -> Self {
-                Self::new([0.0; $N])
+                Self::new([[0.0; $D]; $D])
             }
 
             pub const fn one() -> Self {
-                Self::new([1.0; $N])
-            }
-
-            const fn index(&self, r: usize, c: usize) -> usize {
-                c + r * $C
+                Self::new([[1.0; $D]; $D])
             }
 
             pub fn ident() -> Self {
                 let mut m = Self::zero();
-                for i in 0..$R.min($C) {
-                    m.data[m.index(i, i)] = 1.0;
+                for i in 0..$D {
+                    m.data[i][i] = 1.0;
                 }
 
                 m
             }
 
-            pub fn dim(&self) -> (usize, usize) {
-                ($R, $C)
+            pub fn iter(&self) -> impl Iterator<Item = &f64> {
+                self.data.iter().flat_map(|r| r.iter())
             }
 
-            pub fn len(&self) -> usize {
-                $N
+            pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut f64> {
+                self.data.iter_mut().flat_map(|r| r.iter_mut())
             }
 
-            pub fn row_sums(&self) -> [f64; $R] {
-                let mut res = [0.0; $R];
-                for r in 0..$R {
-                    for c in 0..$C {
-                        res[r] += self.data[self.index(r, c)];
+            pub fn transposed(&self) -> Self {
+                let mut res = self.clone();
+
+                for r in 0..self.d {
+                    for c in (r+1)..self.d {
+                        res.data[c][r] = self.data[r][c];
+                        res.data[r][c] = self.data[c][r];
                     }
                 }
-                res
-            }
 
-            pub fn col_sums(&self) -> [f64; $C] {
-                let mut res = [0.0; $C];
-                for r in 0..$R {
-                    for c in 0..$C {
-                        res[c] += self.data[self.index(r, c)];
-                    }
-                }
                 res
             }
         }
 
-        impl Add for $name {
-            type Output = $name;
+        impl Neg for $matrix {
+            type Output = $matrix;
 
-            fn add(self, mut rhs: $name) -> Self::Output {
-                for i in 0..$N {
-                    rhs.data[i] += self.data[i];
+            fn neg(mut self) -> Self::Output {
+                for r in 0..self.d {
+                    for c in 0..self.d {
+                        self.data[r][c] = -self.data[r][c];
+                    }
                 }
-                rhs
+                self
             }
         }
-    };
 
-    ($name:tt, $R:tt, $C:tt) => {
-        matrix!(@matrix_mn $name, $R, $C, $R * $C);
-    };
+        impl Add for $matrix {
+            type Output = $matrix;
 
-    // name: Matrix item
-    // D: Number of rows/columns for the matrix
-    ($name:tt, $D:tt) => {
-        matrix!($name, $D, $D);
-        matrix_mul!($name, $D);
-    };
-}
+            fn add(mut self, rhs: $matrix) -> Self::Output {
+                for r in 0..self.d {
+                    for c in 0..self.d {
+                        self.data[r][c] += rhs.data[r][c];
+                    }
+                }
+                self
+            }
+        }
 
-macro_rules! matrix_mul {
-    (
-        // A: Left matrix
-        // B: Right matrix
-        // N: Number of columns in A/number of rows in B
-        // O: Output matrix
-        // R: Number of rows in O
-        // C: Number of rows in C
-        ($A:tt, $B:tt, $N:tt),
-        ($O:tt, $R:tt, $C:tt)
-    ) => {
-        impl Mul<$B> for $A {
-            type Output = $O;
+        impl Sub for $matrix {
+            type Output = $matrix;
 
-            fn mul(self, rhs: $B) -> Self::Output {
-                let mut res = $O::zero();
+            fn sub(self, rhs: $matrix) -> Self::Output {
+                self + (-rhs)
+            }
+        }
 
-                for r in 0..$R {
-                    for c in 0..$C {
-                        let i = res.index(r, c);
+        impl Mul for $matrix {
+            type Output = $matrix;
 
-                        for j in 0..$N {
-                            let a_i = self.index(r, j);
-                            let b_i = rhs.index(j, c);
+            fn mul(self, rhs: $matrix) -> Self::Output {
+                let mut res = $matrix::zero();
 
-                            res.data[i] += (self.data[a_i] * rhs.data[b_i]);
+                for r in 0..self.d {
+                    for c in 0..self.d {
+                        for i in 0..self.d {
+                            res.data[r][c] += (self.data[r][i] * rhs.data[i][c]);
                         }
                     }
                 }
@@ -117,141 +109,98 @@ macro_rules! matrix_mul {
                 res
             }
         }
+
+        impl Div<f64> for $matrix {
+            type Output = $matrix;
+
+            fn div(mut self, rhs: f64) -> Self::Output {
+                self.iter_mut().for_each(|v| *v /= rhs);
+                self
+            }
+        }
     };
-    (
-        ($A:tt, $B:tt, $N:tt),
-        ($O:tt, $D:tt)
-    ) => {
-        matrix_mul!(($A, $B, $N), ($O, $D, $D));
+
+    // (Internal match) Matrix additional implementation (requiring the sub-matrix type)
+    // - `matrix`: Matrix type name
+    // - `sub_matrix`: Sub-matrix type name
+    (@matrix_det $matrix:tt, $sub_matrix:tt) => {
+        impl $matrix {
+            pub fn delete(&self, r: usize, c: usize) -> $sub_matrix {
+                let mut res = $sub_matrix::zero();
+
+                for (y, r) in (0..r).chain((r + 1)..self.d).enumerate() {
+                    for (x, c) in (0..c).chain((c + 1)..self.d).enumerate() {
+                        res.data[y][x] = self.data[r][c];
+                    }
+                }
+
+                res
+            }
+
+            pub fn cofactor(&self, r: usize, c: usize) -> f64 {
+                let f = self.delete(r, c).det();
+                if (r + c) % 2 == 0 { f } else { -f }
+            }
+
+            pub fn det(&self) -> f64 {
+                (0..self.d).map(|c| self.data[0][c] * self.cofactor(0, c)).sum()
+            }
+
+            pub fn inverse(&self) -> Option<Self> {
+                if self.det() == 0.0 {
+                    None
+                } else {
+                    let det = self.det();
+
+                    let mut res = self.clone();
+                    for r in 0..self.d {
+                        for c in 0..self.d {
+                            res.data[r][c] = self.cofactor(r, c);
+                        }
+                    }
+                    let res = res.transposed();
+
+                    Some(res / det)
+                }
+            }
+        }
     };
-    ($A:tt, $D:tt) => {
-        matrix_mul!(($A, $A, $D), ($A, $D));
+
+    // (Internal match) Matrix additional implementation (base case)
+    // - `matrix`: Matrix type name
+    (@matrix_det $matrix:tt) => {
+        impl $matrix {
+            pub fn det(&self) -> f64 {
+                self.data[0][0]
+            }
+
+            // pub fn inverse(&self) -> Option<Self> {
+            //     let det = self.det();
+            //
+            //     (det != 0.0).then_some(self.clone() / det)
+            // }
+        }
     };
+
+    // Matrix definition and implementation
+    // - `matrix`: Matrix type name
+    // - `D`: Number of rows/columns
+    // - `sub_matrix`: Sub-matrix type name
+    ($matrix:tt, $D:tt, $sub_matrix:tt) => {
+        matrix!(@matrix_def $matrix, $D);
+        matrix!(@matrix_det $matrix, $sub_matrix);
+    };
+
+    // Matrix definition and implementation (base case)
+    // - `matrix`: Matrix type name
+    // - `D`: Number of rows/columns
+    ($matrix:tt, $D:tt) => {
+        matrix!(@matrix_def $matrix, $D);
+        matrix!(@matrix_det $matrix);
+    }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::ops::{Add, Mul};
-
-    matrix!(Matrix1, 1);
-    matrix!(Matrix2, 2);
-    matrix!(Matrix3, 3);
-    matrix!(Matrix4, 4);
-
-    matrix!(Matrix1x2, 1, 2);
-    matrix!(Matrix1x3, 1, 3);
-    matrix!(Matrix1x4, 1, 4);
-
-    matrix!(Matrix2x1, 2, 1);
-    matrix!(Matrix2x3, 2, 3);
-    matrix!(Matrix2x4, 2, 4);
-
-    matrix!(Matrix3x1, 3, 1);
-    matrix!(Matrix3x2, 3, 2);
-    matrix!(Matrix3x4, 3, 4);
-
-    matrix!(Matrix4x1, 4, 1);
-    matrix!(Matrix4x2, 4, 2);
-    matrix!(Matrix4x3, 4, 3);
-
-    matrix_mul!((Matrix1x4, Matrix4x1, 4), (Matrix1, 1));
-    matrix_mul!((Matrix2x4, Matrix4x1, 4), (Matrix2x1, 2, 1));
-    matrix_mul!((Matrix3x4, Matrix4x1, 4), (Matrix3x1, 3, 1));
-
-    matrix_mul!((Matrix1x4, Matrix4x2, 4), (Matrix1x2, 1, 2));
-
-    //#[test]
-    //fn matrix_1x1_operations() {
-    //const A: Matrix1 = Matrix1::new([2.0]);
-    //const B: Matrix1 = Matrix1::new([3.0]);
-    //{
-    //const R: Matrix1 = Matrix1::new([6.0]);
-    //assert_eq!(A * B, R);
-    //}
-    //{
-    //const R: Matrix1 = Matrix1::new([5.0]);
-    //assert_eq!(A + B, R);
-    //}
-    //}
-
-    fn matrix_4x4_operations() {}
-
-    #[test]
-    fn multiply_1x4_and_4x1_matrices() {
-        const A: Matrix1x4 = Matrix1x4::new([
-            1.0, 2.0, 3.0, 4.0, //
-        ]);
-        const B: Matrix4x1 = Matrix4x1::new([
-            1.0, //
-            2.0, //
-            3.0, //
-            4.0, //
-        ]);
-        const R: Matrix1 = Matrix1::new([
-            1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0, //
-        ]);
-
-        assert_eq!(A * B, R);
-    }
-
-    #[test]
-    fn multiply_2x4_and_4x1_matrices() {
-        const A: Matrix2x4 = Matrix2x4::new([
-            1.0, 2.0, 3.0, 4.0, //
-            5.0, 6.0, 7.0, 8.0, //
-        ]);
-        const B: Matrix4x1 = Matrix4x1::new([
-            1.0, //
-            2.0, //
-            3.0, //
-            4.0, //
-        ]);
-        const R: Matrix2x1 = Matrix2x1::new([
-            1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0, //
-            5.0 * 1.0 + 6.0 * 2.0 + 7.0 * 3.0 + 8.0 * 4.0, //
-        ]);
-
-        assert_eq!(A * B, R);
-    }
-
-    #[test]
-    fn multiply_3x4_and_4x1_matrices() {
-        const A: Matrix3x4 = Matrix3x4::new([
-            1.0, 2.0, 3.0, 4.0, //
-            5.0, 6.0, 7.0, 8.0, //
-            9.0, 10.0, 11.0, 12.0, //
-        ]);
-        const B: Matrix4x1 = Matrix4x1::new([
-            1.0, //
-            2.0, //
-            3.0, //
-            4.0, //
-        ]);
-        const R: Matrix3x1 = Matrix3x1::new([
-            1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0,    //
-            5.0 * 1.0 + 6.0 * 2.0 + 7.0 * 3.0 + 8.0 * 4.0,    //
-            9.0 * 1.0 + 10.0 * 2.0 + 11.0 * 3.0 + 12.0 * 4.0, //
-        ]);
-
-        assert_eq!(A * B, R);
-    }
-
-    #[test]
-    fn multiply_1x4_and_4x2_matrices() {
-        const A: Matrix1x4 = Matrix1x4::new([
-            1.0, 2.0, 3.0, 4.0, //
-        ]);
-        const B: Matrix4x2 = Matrix4x2::new([
-            1.0, 2.0, //
-            3.0, 4.0, //
-            5.0, 6.0, //
-            7.0, 8.0, //
-        ]);
-        const R: Matrix1x2 = Matrix1x2::new([
-            1.0 * 1.0 + 2.0 * 3.0 + 3.0 * 5.0 + 4.0 * 7.0, //
-            1.0 * 2.0 + 2.0 * 4.0 + 3.0 * 6.0 + 4.0 * 8.0, //
-        ]);
-
-        assert_eq!(A * B, R);
-    }
-}
+matrix!(Matrix1, 1);
+matrix!(Matrix2, 2, Matrix1);
+matrix!(Matrix3, 3, Matrix2);
+matrix!(Matrix4, 4, Matrix3);

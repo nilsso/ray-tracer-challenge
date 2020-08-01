@@ -53,13 +53,20 @@ use std::ops::{Add, Mul};
 matrix!(Matrix1, 1);
 matrix!(Matrix2, 2);
 matrix!(Matrix3, 3);
+matrix!(Matrix4, 4);
 
-// Matrix variants
-//matrix!(Matrix2x3, 2, 3);
-//matrix!(Matrix3x2, 3, 2);
+matrix!(Matrix1x4, 4, 1);
+matrix!(Matrix2x4, 4, 1);
+matrix!(Matrix3x4, 4, 1);
+
+matrix!(Matrix4x1, 4, 1);
+matrix!(Matrix4x2, 4, 1);
+matrix!(Matrix4x3, 4, 1);
 
 // Matrix multiplication
 //matrix_mul!((Matrix2x3, Matrix3x2, 3), (Matrix2, 2));
+//matrix_mul!((Matrix1x4, Matrix4x1, 1), (Matrix1, 1));
+//matrix_mul!((Matrix2x4, Matrix4x1, 1), (Matrix2x1, 1));
 
 #[cfg(test)]
 mod tests {
@@ -221,21 +228,5 @@ mod tests {
         }
     }
 
-    mod matrix {
-        use crate::Matrix1;
-
-        #[test]
-        fn square_1x1_operations() {
-            const A: Matrix1 = Matrix1::new([2.0]);
-            const B: Matrix1 = Matrix1::new([3.0]);
-            {
-                const R: Matrix1 = Matrix1::new([6.0]);
-                assert_eq!(A * B, R);
-            }
-            {
-                const R: Matrix1 = Matrix1::new([5.0]);
-                assert_eq!(A + B, R);
-            }
-        }
-    }
+    mod matrix {}
 }

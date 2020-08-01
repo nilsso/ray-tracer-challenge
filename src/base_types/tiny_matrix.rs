@@ -90,9 +90,10 @@ macro_rules! matrix_mul {
         // B: Right matrix
         // N: Number of columns in A/number of rows in B
         // O: Output matrix
-        // D: Number of columns/rows in O
+        // R: Number of rows in O
+        // C: Number of rows in C
         ($A:tt, $B:tt, $N:tt),
-        ($O:tt, $D:tt)
+        ($O:tt, $R:tt, $C:tt)
     ) => {
         impl Mul<$B> for $A {
             type Output = $O;
@@ -100,8 +101,8 @@ macro_rules! matrix_mul {
             fn mul(self, rhs: $B) -> Self::Output {
                 let mut res = $O::zero();
 
-                for r in 0..$D {
-                    for c in 0..$D {
+                for r in 0..$R {
+                    for c in 0..$C {
                         let i = res.index(r, c);
 
                         for j in 0..$N {
@@ -117,7 +118,140 @@ macro_rules! matrix_mul {
             }
         }
     };
+    (
+        ($A:tt, $B:tt, $N:tt),
+        ($O:tt, $D:tt)
+    ) => {
+        matrix_mul!(($A, $B, $N), ($O, $D, $D));
+    };
     ($A:tt, $D:tt) => {
         matrix_mul!(($A, $A, $D), ($A, $D));
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::{Add, Mul};
+
+    matrix!(Matrix1, 1);
+    matrix!(Matrix2, 2);
+    matrix!(Matrix3, 3);
+    matrix!(Matrix4, 4);
+
+    matrix!(Matrix1x2, 1, 2);
+    matrix!(Matrix1x3, 1, 3);
+    matrix!(Matrix1x4, 1, 4);
+
+    matrix!(Matrix2x1, 2, 1);
+    matrix!(Matrix2x3, 2, 3);
+    matrix!(Matrix2x4, 2, 4);
+
+    matrix!(Matrix3x1, 3, 1);
+    matrix!(Matrix3x2, 3, 2);
+    matrix!(Matrix3x4, 3, 4);
+
+    matrix!(Matrix4x1, 4, 1);
+    matrix!(Matrix4x2, 4, 2);
+    matrix!(Matrix4x3, 4, 3);
+
+    matrix_mul!((Matrix1x4, Matrix4x1, 4), (Matrix1, 1));
+    matrix_mul!((Matrix2x4, Matrix4x1, 4), (Matrix2x1, 2, 1));
+    matrix_mul!((Matrix3x4, Matrix4x1, 4), (Matrix3x1, 3, 1));
+
+    matrix_mul!((Matrix1x4, Matrix4x2, 4), (Matrix1x2, 1, 2));
+
+    //#[test]
+    //fn matrix_1x1_operations() {
+    //const A: Matrix1 = Matrix1::new([2.0]);
+    //const B: Matrix1 = Matrix1::new([3.0]);
+    //{
+    //const R: Matrix1 = Matrix1::new([6.0]);
+    //assert_eq!(A * B, R);
+    //}
+    //{
+    //const R: Matrix1 = Matrix1::new([5.0]);
+    //assert_eq!(A + B, R);
+    //}
+    //}
+
+    fn matrix_4x4_operations() {}
+
+    #[test]
+    fn multiply_1x4_and_4x1_matrices() {
+        const A: Matrix1x4 = Matrix1x4::new([
+            1.0, 2.0, 3.0, 4.0, //
+        ]);
+        const B: Matrix4x1 = Matrix4x1::new([
+            1.0, //
+            2.0, //
+            3.0, //
+            4.0, //
+        ]);
+        const R: Matrix1 = Matrix1::new([
+            1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0, //
+        ]);
+
+        assert_eq!(A * B, R);
+    }
+
+    #[test]
+    fn multiply_2x4_and_4x1_matrices() {
+        const A: Matrix2x4 = Matrix2x4::new([
+            1.0, 2.0, 3.0, 4.0, //
+            5.0, 6.0, 7.0, 8.0, //
+        ]);
+        const B: Matrix4x1 = Matrix4x1::new([
+            1.0, //
+            2.0, //
+            3.0, //
+            4.0, //
+        ]);
+        const R: Matrix2x1 = Matrix2x1::new([
+            1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0, //
+            5.0 * 1.0 + 6.0 * 2.0 + 7.0 * 3.0 + 8.0 * 4.0, //
+        ]);
+
+        assert_eq!(A * B, R);
+    }
+
+    #[test]
+    fn multiply_3x4_and_4x1_matrices() {
+        const A: Matrix3x4 = Matrix3x4::new([
+            1.0, 2.0, 3.0, 4.0, //
+            5.0, 6.0, 7.0, 8.0, //
+            9.0, 10.0, 11.0, 12.0, //
+        ]);
+        const B: Matrix4x1 = Matrix4x1::new([
+            1.0, //
+            2.0, //
+            3.0, //
+            4.0, //
+        ]);
+        const R: Matrix3x1 = Matrix3x1::new([
+            1.0 * 1.0 + 2.0 * 2.0 + 3.0 * 3.0 + 4.0 * 4.0,    //
+            5.0 * 1.0 + 6.0 * 2.0 + 7.0 * 3.0 + 8.0 * 4.0,    //
+            9.0 * 1.0 + 10.0 * 2.0 + 11.0 * 3.0 + 12.0 * 4.0, //
+        ]);
+
+        assert_eq!(A * B, R);
+    }
+
+    #[test]
+    fn multiply_1x4_and_4x2_matrices() {
+        const A: Matrix1x4 = Matrix1x4::new([
+            1.0, 2.0, 3.0, 4.0, //
+        ]);
+        const B: Matrix4x2 = Matrix4x2::new([
+            1.0, 2.0, //
+            3.0, 4.0, //
+            5.0, 6.0, //
+            7.0, 8.0, //
+        ]);
+        const R: Matrix1x2 = Matrix1x2::new([
+            1.0 * 1.0 + 2.0 * 3.0 + 3.0 * 5.0 + 4.0 * 7.0, //
+            1.0 * 2.0 + 2.0 * 4.0 + 3.0 * 6.0 + 4.0 * 8.0, //
+        ]);
+
+        assert_eq!(A * B, R);
+    }
 }
